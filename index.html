@@ -157,6 +157,8 @@ footer .sig{font:600 28px/1 var(--f-hand);color:var(--ink);display:block;margin-
 .perk{margin-top:10px;background:color-mix(in srgb, var(--butter) 35%, var(--card));border-radius:12px;padding:10px 12px;font-size:14px;color:var(--ink)}
 .sheet p.recent{margin:10px 0 0;max-width:none;font-size:13.5px;color:var(--muted);text-align:center}
 .letter{font:600 20px/1.25 var(--f-hand);color:var(--ink)!important}
+.skip{appearance:none;width:100%;margin-top:12px;border:2px solid var(--ink);background:var(--ground);color:var(--ink);border-radius:14px;padding:12px;font:800 16px var(--f-body);cursor:pointer}
+.btn-free{background:transparent;color:var(--ink);border:2px solid var(--line);min-height:52px;font-size:16px}
 .thanks{text-align:center;padding-block:8px}
 .thanks .hand{font:600 34px/1 var(--f-hand);color:var(--bandana)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;z-index:30;max-width:calc(100% - 32px);text-align:center}
@@ -258,7 +260,8 @@ footer .sig{font:600 28px/1 var(--f-hand);color:var(--ink);display:block;margin-
         <img src="img/eli.jpg" alt="">
         <h3 id="sh-title">¿Te sirvió? Apoya a Chef Eli</h3>
       </div>
-      <p class="letter">Te lo entregué primero porque confío en ti. Estas recetas las pruebo en mi cocina una por una, y tu aporte es lo que me deja seguir haciéndolo. Gracias por estar aquí. — Eli</p>
+      <p class="letter" id="letter">Te lo entregué primero porque confío en ti. Estas recetas las pruebo en mi cocina una por una, y tu aporte es lo que me deja seguir haciéndolo. Gracias por estar aquí. — Eli</p>
+      <button class="skip" id="skiptop" type="button" hidden>Prefiero descargarlo gratis ahora ⬇</button>
       <span class="q">Elige tu aporte voluntario</span>
       <div class="amts" id="amts" role="group" aria-label="Valor del aporte">
         <button class="amtb" type="button" data-v="20000" aria-pressed="false">$20.000<small>Aporte</small></button>
@@ -289,7 +292,7 @@ footer .sig{font:600 28px/1 var(--f-hand);color:var(--ink);display:block;margin-
       </div>
       <div class="actions">
         <button class="btn btn-main" id="done" type="button">Ya hice mi aporte</button>
-        <button class="btn btn-ghost" id="later" type="button">Ahora no, gracias</button>
+        <button class="btn btn-free" id="later" type="button">Ahora no, gracias</button>
       </div>
       <p class="fine">No te pido nombre ni teléfono. Solo cuento el aporte para saber qué recetas te gustan más.</p>
     </div>
@@ -300,6 +303,7 @@ footer .sig{font:600 28px/1 var(--f-hand);color:var(--ink);display:block;margin-
         <a class="btn btn-main" id="gift" target="_blank" rel="noopener" hidden>Abrir mi regalo</a>
         <a class="btn btn-main" id="gift2" target="_blank" rel="noopener" hidden>Abrir mi recetario extra</a>
         <button class="btn btn-main" id="addfoto" type="button" hidden>Subir mi comprobante</button>
+        <button class="btn btn-free" id="getfiles" type="button" hidden>Ver y descargar mis recetarios</button>
         <button class="btn btn-ghost" id="back" type="button">Volver a los recetarios</button>
       </div>
     </div>
@@ -324,7 +328,7 @@ function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false
 function press2(el){ document.querySelectorAll(".amtb").forEach(c => c.setAttribute("aria-pressed", String(c === el))); }
 function press(group, el){ group.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(c === el))); }
 
-let away = false, foto = null;
+let away = false, foto = null, phase = "despues"; const paid = {};
 $("foto").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
   const img = new Image(), url = URL.createObjectURL(f);
@@ -338,22 +342,27 @@ $("foto").addEventListener("change", e => {
   };
   img.src = url;
 });
+// Al tocar "Descargar gratis": primero se ofrece aportar; descargar sin aportar queda siempre a un toque
 document.querySelectorAll("[data-pack]").forEach(btn => btn.addEventListener("click", () => {
   current = PACKS.find(p => p.id === btn.dataset.pack);
-  const d = document.getElementById("dl-" + current.id); d.hidden = false;
-  btn.hidden = true; d.scrollIntoView({ behavior: "smooth", block: "center" });
-  log("descarga", {});
-  clearTimeout(timer); timer = setTimeout(openSheet, POPUP_MS);
+  phase = "antes"; openSheet();
 }));
+function reveal(){
+  if (!current) return;
+  const d = document.getElementById("dl-" + current.id);
+  if (d.hidden) { d.hidden = false; log("descarga", {}); }
+  const b = document.querySelector('[data-pack="' + current.id + '"]'); if (b) b.hidden = true;
+  closeSheet(); setTimeout(() => d.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+}
 document.querySelectorAll(".file").forEach(a => a.addEventListener("click", e => {
   current = PACKS.find(p => p.id === a.dataset.of);
   if (!ready(a.href)) { e.preventDefault(); toast("Borrador: aquí se abre el PDF"); return; }
   away = true;
 }));
-document.querySelectorAll(".support").forEach(b => b.addEventListener("click", () => { current = PACKS.find(p => p.id === b.dataset.of); openSheet(); }));
+document.querySelectorAll(".support").forEach(b => b.addEventListener("click", () => { current = PACKS.find(p => p.id === b.dataset.of); phase = "despues"; openSheet(); }));
 // Cuando vuelve de ver su PDF, aparece la ventana del aporte (reciprocidad: ya recibió)
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && away && current) { away = false; clearTimeout(timer); timer = setTimeout(openSheet, 900); }
+  if (document.visibilityState === "visible" && away && current && !paid[current.id]) { away = false; phase = "despues"; clearTimeout(timer); timer = setTimeout(openSheet, 900); }
 });
 
 function openSheet(){
@@ -362,12 +371,21 @@ function openSheet(){
   $("ask").hidden = false; $("thanks").hidden = true;
   amount = null; medio = null; foto = null; $("amt").value = ""; $("foto").value = ""; press($("medios"), null);
   $("cam").innerHTML = $("cam").dataset.icon || ($("cam").dataset.icon = $("cam").innerHTML); $("foto-txt").innerHTML = "Subir foto<small>Solo la ve Chef Eli.</small>"; press2(null); $("amt").hidden = true;
+  const antes = phase === "antes";
+  $("sh-title").textContent = antes ? "¡Tu recetario está listo!" : "¿Te sirvió? Apoya a Chef Eli";
+  $("letter").textContent = antes
+    ? "Es tuyo, gratis. Si quieres apoyar mi trabajo, puedes aportar ahora; si prefieres, lo descargas y aportas después, cuando lo pruebes. Tú decides. — Eli"
+    : "Te lo entregué primero porque confío en ti. Estas recetas las pruebo en mi cocina una por una, y tu aporte es lo que me deja seguir haciéndolo. Gracias por estar aquí. — Eli";
+  $("later").textContent = antes ? "Descargar gratis sin aportar" : "Ahora no, gracias";
+  $("skiptop").hidden = !antes;
   $("veil").hidden = false; $("done").focus({ preventScroll: true });
 }
 function closeSheet(){ $("veil").hidden = true; }
-$("later").onclick = closeSheet; $("back").onclick = closeSheet;
-$("veil").addEventListener("click", e => { if (e.target === $("veil")) closeSheet(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+$("later").onclick = () => { if (phase === "antes") reveal(); else closeSheet(); };
+$("back").onclick = () => { if (phase === "antes") reveal(); else closeSheet(); };
+$("getfiles").onclick = reveal; $("skiptop").onclick = reveal;
+$("veil").addEventListener("click", e => { if (e.target === $("veil")) { if (phase === "antes" && !$("veil").hidden) reveal(); else closeSheet(); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("veil").hidden) { if (phase === "antes") reveal(); else closeSheet(); } });
 $("medios").addEventListener("click", e => { const b = e.target.closest(".chip"); if (!b) return; medio = b.dataset.m; press($("medios"), b); });
 $("amt").addEventListener("input", e => { const n = parseInt(e.target.value.replace(/\D/g, "")); amount = n || null; press2(null); });
 $("amts").addEventListener("click", e => { const b = e.target.closest(".amtb"); if (!b) return; amount = Number(b.dataset.v); press2(b); $("amt").hidden = true; $("amt").value = ""; });
@@ -381,8 +399,10 @@ document.querySelectorAll(".payrow").forEach(row => row.addEventListener("click"
 }));
 
 $("done").addEventListener("click", () => {
-  log("aporte", { valor: amount || "", medio: medio || "", foto: foto || "" });
+  log(phase === "antes" ? "aporte antes" : "aporte", { valor: amount || "", medio: medio || "", foto: foto || "" });
+  if (foto) paid[current.id] = true;
   $("ask").hidden = true; $("thanks").hidden = false;
+  $("getfiles").hidden = phase !== "antes";
   const g = $("gift"), g2 = $("gift2"), ex = EXTRA[current.id];
   g.hidden = true; g2.hidden = true; $("addfoto").hidden = true;
   if (foto) {
