@@ -415,12 +415,16 @@ $("done").addEventListener("click", () => {
   }
 });
 
+// Link directo a un pack (ej. ?pack=proteico&o=antojo): baja al pack y marca de dónde vino en la hoja
+const QS = new URLSearchParams(location.search), ORIGEN = (QS.get("o") || "").slice(0, 20), DEEP = QS.get("pack");
+if (DEEP && document.getElementById(DEEP)) setTimeout(() => document.getElementById(DEEP).scrollIntoView({ behavior: "smooth", block: "start" }), 400);
+function packTag(){ return current.id + (ORIGEN ? " · " + ORIGEN : ""); }
 function log(tipo, extra){
   if (!current) return;
-  const data = Object.assign({ tipo, pack: current.id, fecha: new Date().toISOString() }, extra);
+  const data = Object.assign({ tipo, pack: packTag(), fecha: new Date().toISOString() }, extra);
   if (window.google && google.script && google.script.run) { google.script.run.registrar(data); return; }
   if (!ready(REGISTRO_URL)) return;
-  const body = JSON.stringify(Object.assign({ tipo, pack: current.id, fecha: new Date().toISOString() }, extra));
+  const body = JSON.stringify(Object.assign({ tipo, pack: packTag(), fecha: new Date().toISOString() }, extra));
   try { fetch(REGISTRO_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body }); } catch (e) {}
 }
 </script>
